@@ -20,7 +20,9 @@ package com.yahoo.ycsb.workloads;
 import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.*;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.InterruptedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -68,7 +70,16 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
     // 单线程不断的从文件收集key
     producer.execute(() -> {
-      try (Stream<String> stream = Files.lines(Paths.get(KEY_FILE))) {
+      try {
+        Stream<String> stream;
+        switch (KEY_FILE) {
+          case "/dev/stdin":
+            stream = new BufferedReader(new InputStreamReader(System.in)).lines();
+            break;
+          default:
+            stream = Files.lines(Paths.get(KEY_FILE));
+        }
+
         stream.forEach(line -> {
           try {
             keyQueue.put(line);
