@@ -51,8 +51,11 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
   public static final String KEY_FILE = "keyfile";
 
+  public static final String QUEUE_SIZE = "queuesize";
+  public static final String QUEUE_SIZE_DEFAULT = "20000";
 
-  public static final LinkedBlockingQueue<String> keyQueue = new LinkedBlockingQueue<>();
+
+  public static LinkedBlockingQueue<String> keyQueue = null;
   private static final ExecutorService producer = Executors.newFixedThreadPool(1);
   private static volatile boolean KEY_FILE_EOF = false;
 
@@ -63,9 +66,9 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   @Override
   public void init(Properties p) throws WorkloadException {
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
-
-    recordcount =
-        Integer.parseInt(p.getProperty(Client.RECORD_COUNT_PROPERTY, Client.DEFAULT_RECORD_COUNT));
+    
+    queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
+    keyQueue = new LinkedBlockingQueue<>(queuesize)
 
 
     // 单线程不断的从文件收集key
@@ -104,18 +107,14 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
    */
   @Override
   public boolean doTransaction(DB db, Object threadstate) {
-    doTransactionRead(db);
-    return true;
+    return doTransactionRead(db);
   }
 
 
-  public void doTransactionRead(DB db) {
-    //ByteIterator keydata =
-    //TODO read from queue
-
+  public boolean doTransactionRead(DB db) {
     String key;
     if (KEY_FILE_EOF && keyQueue.isEmpty()) {
-      return;
+      return false;
     } else {
       try {
         key = keyQueue.take();
@@ -124,28 +123,10 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
       }
     }
 
-
-    String keyname = "_id";
-
     HashSet<String> fields = null;
-
-    if (!readallfields) {
-      // read a random field
-      String fieldname = fieldnames.get(fieldchooser.nextValue().intValue());
-
-      fields = new HashSet<String>();
-      fields.add(fieldname);
-    } else if (dataintegrity) {
-      // pass the full field list if dataintegrity is on for verification
-      fields = new HashSet<String>(fieldnames);
-    }
-
     HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-    db.read(table, keyname, fields, cells);
-
-    if (dataintegrity) {
-      verifyRow(keyname, cells);
-    }
+    db.read(table, key, fields, cells);
+    return true;
   }
 
 }

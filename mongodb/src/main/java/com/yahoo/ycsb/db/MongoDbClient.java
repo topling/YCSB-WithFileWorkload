@@ -44,7 +44,7 @@ import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.Status;
 
 import org.bson.Document;
-import org.bson.types.Binary;
+import org.bson.types.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -86,6 +86,14 @@ public class MongoDbClient extends DB {
 
   /** The database name to access. */
   private static MongoDatabase database;
+
+  private static final String KEY_NAME = "keyname";
+  private static final String KEY_NAME_DEFAULT = "_id";
+  private static final String KEY_TYPE = "keytype";
+  private static final String KEY_TYPE_DEFAULT = "string";
+
+  private String keyName;
+  private String keyType;
 
   /**
    * Count the number of times initialized to teardown on the last
@@ -161,6 +169,20 @@ public class MongoDbClient extends DB {
     }
   }
 
+  public Object buildKey(String key) {
+    switch (keyType) {
+      case "string" :
+      case "String" :
+        return key;
+      case "oid" :
+      case "ObjectId" :
+        return ObjectId(key);
+      default:
+        return null;
+    }
+  }
+
+
   /**
    * Initialize any state for this DB. Called once per DB instance; there is one
    * DB instance per client thread.
@@ -174,6 +196,9 @@ public class MongoDbClient extends DB {
       }
 
       Properties props = getProperties();
+
+      keyName = p.getProperty(KEY_NAME, KEY_NAME_DEFAULT);
+      keyType = p.getProperty(KEY_TYPE, KEY_TYPE_DEFAULT);
 
       // Set insert batchsize, default 1 - to be YCSB-original equivalent
       batchSize = Integer.parseInt(props.getProperty("batchsize", "1"));
@@ -318,7 +343,7 @@ public class MongoDbClient extends DB {
       HashMap<String, ByteIterator> result) {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
-      Document query = new Document("_id", key);
+      Document query = new Document(keyName, buildKey(key));
 
       FindIterable<Document> findIterable = collection.find(query);
 
