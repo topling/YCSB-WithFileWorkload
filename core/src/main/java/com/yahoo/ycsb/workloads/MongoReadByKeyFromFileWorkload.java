@@ -21,8 +21,11 @@ import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.*;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.concurrent.*;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class MongoReadByKeyFromFileWorkload extends Workload {
   private class LoadThread extends Threads {
@@ -44,6 +47,11 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
   public static final String KEY_FILE = "keyfile";
 
+
+  public static final LinkedBlockingQueue<String> keyQueue = new LinkedBlockingQueue<>();
+  private static final ExecutorService producer = Executors.newFixedThreadPool(1);
+  private static volatile boolean KEY_FILE_EOF = false;
+
   /**
    * Initialize the scenario.
    * Called once, in the main client thread, before any operations are started.
@@ -54,7 +62,21 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
     recordcount =
         Integer.parseInt(p.getProperty(Client.RECORD_COUNT_PROPERTY, Client.DEFAULT_RECORD_COUNT));
+
+
+    // 单线程不断的从文件收集key
+    producer.execute(() -> {
+      try (Stream<String> stream = Files.lines(Paths.get(KEY_FILE))) {
+        stream.forEach(keyQueue::add);
+      } catch (IOException e) {
+        throw new RuntimeException("Keyfile 读取出错 : " + e.getCause().getMessage());
+      } finally {
+        KEY_FILE_EOF = true;
+      }
+    });
+
   }
+
   /**
    * Do one transaction operation. Because it will be called concurrently from multiple client
    * threads, this function must be thread safe. However, avoid synchronized, or the threads will block waiting
@@ -71,6 +93,18 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public void doTransactionRead(DB db) {
     //ByteIterator keydata =
     //TODO read from queue
+
+    String key;
+    if (KEY_FILE_EOF && keyQueue.isEmpty()) {
+      return;
+    } else {
+      try {
+        key = keyQueue.take();
+      } catch (InterruptedException e) {
+        e.printStackTrace();
+      }
+    }
+
 
     String keyname = "_id";
 
