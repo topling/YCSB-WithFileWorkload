@@ -21,10 +21,12 @@ import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.*;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.*;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class MongoReadByKeyFromFileWorkload extends Workload {
@@ -67,8 +69,14 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
     // 单线程不断的从文件收集key
     producer.execute(() -> {
       try (Stream<String> stream = Files.lines(Paths.get(KEY_FILE))) {
-        stream.forEach(keyQueue::add);
-      } catch (IOException e) {
+        stream.forEach(line -> {
+          try {
+            keyQueue.put(line);
+          } catch (InterruptedException e) {
+            throw new RuntimeException("KEY插入共享队列出错 : " + e.getMessage());
+          }
+        });
+      } catch (Exception e) {
         throw new RuntimeException("Keyfile 读取出错 : " + e.getCause().getMessage());
       } finally {
         KEY_FILE_EOF = true;
