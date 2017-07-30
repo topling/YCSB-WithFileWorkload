@@ -171,14 +171,14 @@ public class MongoDbClient extends DB {
 
   public Object buildKey(String key) {
     switch (keyType) {
-      case "string" :
-      case "String" :
-        return key;
-      case "oid" :
-      case "ObjectId" :
-        return ObjectId(key);
-      default:
-        return null;
+    case "string" :
+    case "String" :
+      return key;
+    case "oid" :
+    case "ObjectId" :
+      return new ObjectId(key);
+    default:
+      return null;
     }
   }
 
@@ -197,8 +197,8 @@ public class MongoDbClient extends DB {
 
       Properties props = getProperties();
 
-      keyName = p.getProperty(KEY_NAME, KEY_NAME_DEFAULT);
-      keyType = p.getProperty(KEY_TYPE, KEY_TYPE_DEFAULT);
+      keyName = props.getProperty(KEY_NAME, KEY_NAME_DEFAULT);
+      keyType = props.getProperty(KEY_TYPE, KEY_TYPE_DEFAULT);
 
       // Set insert batchsize, default 1 - to be YCSB-original equivalent
       batchSize = Integer.parseInt(props.getProperty("batchsize", "1"));

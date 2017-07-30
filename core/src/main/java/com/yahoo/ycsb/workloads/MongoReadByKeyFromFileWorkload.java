@@ -21,21 +21,21 @@ import com.yahoo.ycsb.*;
 import com.yahoo.ycsb.generator.*;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.InterruptedIOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.concurrent.*;
 import java.util.*;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+/**
+ * For mongo read by key from file .
+ * <p>
+ * Properties to control the client:
+ * <UL>
+ * </ul>
+ */
 public class MongoReadByKeyFromFileWorkload extends Workload {
-  private class LoadThread extends Threads {
-
-  }
-
 
   /**
    * The name of the database table to run queries against.
@@ -55,9 +55,12 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public static final String QUEUE_SIZE_DEFAULT = "20000";
 
 
-  public static LinkedBlockingQueue<String> keyQueue = null;
-  private static final ExecutorService producer = Executors.newFixedThreadPool(1);
-  private static volatile boolean KEY_FILE_EOF = false;
+  private static LinkedBlockingQueue<String> keyQueue = null;
+  public static LinkedBlockingQueue<String> getKeyQueue() {
+    return keyQueue;
+  }
+  private static ExecutorService producer = Executors.newFixedThreadPool(1);
+  private static volatile boolean keyFileEof = false;
 
   /**
    * Initialize the scenario.
@@ -67,36 +70,43 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public void init(Properties p) throws WorkloadException {
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
     
-    queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
-    keyQueue = new LinkedBlockingQueue<>(queuesize)
+    int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
+    keyQueue = new LinkedBlockingQueue<>(queuesize);
 
 
     // 单线程不断的从文件收集key
     producer.execute(() -> {
-      try {
-        Stream<String> stream;
-        switch (KEY_FILE) {
+        try {
+          Stream<String> stream;
+          switch (KEY_FILE) {
           case "/dev/stdin":
             stream = new BufferedReader(new InputStreamReader(System.in)).lines();
             break;
           default:
             stream = Files.lines(Paths.get(KEY_FILE));
-        }
-
-        stream.forEach(line -> {
-          try {
-            keyQueue.put(line);
-          } catch (InterruptedException e) {
-            throw new RuntimeException("KEY插入共享队列出错 : " + e.getMessage());
           }
-        });
-      } catch (Exception e) {
-        throw new RuntimeException("Keyfile 读取出错 : " + e.getCause().getMessage());
-      } finally {
-        KEY_FILE_EOF = true;
-      }
-    });
 
+          stream.forEach(line -> {
+              try {
+                getKeyQueue().put(line);
+              } catch (InterruptedException e) {
+                throw new RuntimeException("KEY插入共享队列出错 : " + e.getMessage());
+              }
+            }
+          );
+        } catch (Exception e) {
+          throw new RuntimeException("Keyfile 读取出错 : " + e.getCause().getMessage());
+        } finally {
+          keyFileEof = true;
+        }
+      }
+    );
+
+  }
+
+  @Override
+  public boolean doInsert(DB db, Object threadstate) {
+    return false;
   }
 
   /**
@@ -112,14 +122,15 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
 
   public boolean doTransactionRead(DB db) {
-    String key;
-    if (KEY_FILE_EOF && keyQueue.isEmpty()) {
+    String key = null;
+    if (keyFileEof && keyQueue.isEmpty()) {
       return false;
     } else {
       try {
         key = keyQueue.take();
       } catch (InterruptedException e) {
         e.printStackTrace();
+        return false;
       }
     }
 
