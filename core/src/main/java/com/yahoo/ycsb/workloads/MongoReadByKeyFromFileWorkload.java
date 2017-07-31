@@ -22,6 +22,8 @@ import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.Workload;
 import com.yahoo.ycsb.WorkloadException;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.RandomAccessFile;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -83,13 +85,14 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
       @Override
       public void run() {
         try {
-          RandomAccessFile raf = new RandomAccessFile(KEY_FILE, "r");
-          String line = raf.readLine();
+          BufferedReader reader = new BufferedReader(new FileReader(KEY_FILE));
+//          RandomAccessFile raf = new RandomAccessFile(KEY_FILE, "r");
+          String line = reader.readLine();
           while (line != null) {
             keyQueue.put(line);
-            line = raf.readLine();
+            line = reader.readLine();
           }
-          raf.close();
+          reader.close();
         } catch (Exception e) {
           throw new RuntimeException("Keyfile 读取出错 : " + e.getCause().getMessage());
         } finally {
