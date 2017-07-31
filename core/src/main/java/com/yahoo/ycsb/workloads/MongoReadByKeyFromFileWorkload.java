@@ -59,9 +59,13 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
 
   private static LinkedBlockingQueue<String> keyQueue = null;
+  private static String keyfile;
 
   public static LinkedBlockingQueue<String> getKeyQueue() {
     return keyQueue;
+  }
+  public static String getKeyfile() {
+    return keyfile;
   }
 
   private static ExecutorService producer = Executors.newFixedThreadPool(1);
@@ -75,6 +79,8 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public void init(Properties p) throws WorkloadException {
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
 
+    keyfile = p.getProperty(KEY_FILE, KEY_FILE);
+
     int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
     keyQueue = new LinkedBlockingQueue<>(queuesize);
 
@@ -84,7 +90,7 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
       @Override
       public void run() {
         try {
-          BufferedReader reader = new BufferedReader(new FileReader(KEY_FILE));
+          BufferedReader reader = new BufferedReader(new FileReader(getKeyfile()));
 //          RandomAccessFile raf = new RandomAccessFile(KEY_FILE, "r");
           String line = reader.readLine();
           while (line != null) {

@@ -91,6 +91,7 @@ public class MongoDbClient extends DB {
   private static final String KEY_NAME_DEFAULT = "_id";
   private static final String KEY_TYPE = "keytype";
   private static final String KEY_TYPE_DEFAULT = "string";
+  private static final String DATABASE_NAME = "database";
 
   private String keyName;
   private String keyType;
@@ -237,8 +238,8 @@ public class MongoDbClient extends DB {
         } else {
           // If no database is specified in URI, use "ycsb"
           databaseName = "ycsb";
-
         }
+        databaseName = props.getProperty(DATABASE_NAME, databaseName);
 
         readPreference = uri.getOptions().getReadPreference();
         writeConcern = uri.getOptions().getWriteConcern();
