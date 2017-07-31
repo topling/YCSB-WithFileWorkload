@@ -24,7 +24,6 @@ import com.yahoo.ycsb.WorkloadException;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.RandomAccessFile;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
