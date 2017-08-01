@@ -85,8 +85,8 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
     keyfile = p.getProperty(KEY_FILE, KEY_FILE);
 
-    int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
-    keyQueue = new LinkedBlockingQueue<>(queuesize);
+    final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
+    keyQueue = new LinkedBlockingQueue<>();
 
 
     // 单线程不断的从文件收集key
@@ -97,8 +97,10 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
           BufferedReader reader = new BufferedReader(new FileReader(getKeyfile()));
           String line = reader.readLine();
           while (line != null && !getIsStop()) {
-            keyQueue.put(line);
-            line = reader.readLine();
+            if(keyQueue.size() < queuesize){
+              keyQueue.add(line);
+              line = reader.readLine();
+            }
           }
           reader.close();
         } catch (Exception e) {
