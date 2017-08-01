@@ -170,16 +170,13 @@ public class MongoDbClient extends DB {
   }
 
   public Object buildKey(String key) {
-    switch (keyType) {
-    case "string" :
-    case "String" :
+    if ("string".equals(key) || "String".equals(key)) {
       return key;
-    case "oid" :
-    case "ObjectId" :
-      return new ObjectId(key);
-    default:
-      return null;
     }
+    if ("oid".equals(key) || "ObjectId".equals(key)) {
+      return new ObjectId(key);
+    }
+    return null;
   }
 
 
