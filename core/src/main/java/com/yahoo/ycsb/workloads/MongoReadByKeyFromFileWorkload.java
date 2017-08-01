@@ -50,7 +50,7 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
    */
   public static final String TABLENAME_PROPERTY_DEFAULT = "usertable";
 
-  protected String table;
+  protected static String table;
 
   public static final String KEY_FILE = "keyfile";
 
@@ -70,6 +70,10 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
   private static ExecutorService producer = Executors.newFixedThreadPool(1);
   private static volatile boolean keyFileEof = false;
+  private static volatile boolean isStop = false;
+  public static boolean getIsStop() {
+    return isStop;
+  }
 
   /**
    * Initialize the scenario.
@@ -91,9 +95,8 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
       public void run() {
         try {
           BufferedReader reader = new BufferedReader(new FileReader(getKeyfile()));
-//          RandomAccessFile raf = new RandomAccessFile(KEY_FILE, "r");
           String line = reader.readLine();
-          while (line != null) {
+          while (line != null && !getIsStop()) {
             keyQueue.put(line);
             line = reader.readLine();
           }
@@ -144,4 +147,9 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
     return true;
   }
 
+  @Override
+  public void cleanup() throws WorkloadException {
+    isStop = true;
+    keyQueue.clear();
+  }
 }
