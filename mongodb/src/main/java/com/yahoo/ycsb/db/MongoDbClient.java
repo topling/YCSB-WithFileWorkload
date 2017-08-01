@@ -91,7 +91,6 @@ public class MongoDbClient extends DB {
   private static final String KEY_NAME_DEFAULT = "_id";
   private static final String KEY_TYPE = "keytype";
   private static final String KEY_TYPE_DEFAULT = "string";
-  private static final String DATABASE_NAME = "database";
 
   private String keyName;
   private String keyType;
@@ -239,7 +238,6 @@ public class MongoDbClient extends DB {
           // If no database is specified in URI, use "ycsb"
           databaseName = "ycsb";
         }
-        databaseName = props.getProperty(DATABASE_NAME, databaseName);
 
         readPreference = uri.getOptions().getReadPreference();
         writeConcern = uri.getOptions().getWriteConcern();
@@ -359,11 +357,13 @@ public class MongoDbClient extends DB {
       Document queryResult = findIterable.first();
 
       if (queryResult != null) {
-        fillMap(result, queryResult);
+        // disable this tempory
+        //fillMap(result, queryResult);
       }
       return queryResult != null ? Status.OK : Status.NOT_FOUND;
     } catch (Exception e) {
-      System.err.println(e.toString());
+      e.printStackTrace();
+      //System.err.println(e.toString());
       return Status.ERROR;
     }
   }
