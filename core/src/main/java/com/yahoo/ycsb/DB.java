@@ -79,13 +79,37 @@ public abstract class DB {
   /**
    * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
    *
-   * @param table The name of the table
-   * @param key The record key of the record to read.
+   * @param table  The name of the table
+   * @param key    The record key of the record to read.
    * @param fields The list of fields to read, or null for all of them
    * @param result A HashMap of field/value pairs for the result
    * @return The result of the operation.
    */
   public abstract Status read(String table, String key, Set<String> fields, HashMap<String, ByteIterator> result);
+
+  /**
+   * Read a record from the database. Each field/value pair from the result will be stored in a HashMap.
+   *
+   * @param table  The name of the table
+   * @param keyVec The record key vector of the record to read.
+   * @param fields The list of fields to read, or null for all of them
+   * @param result A HashMap of field/value pairs for the result
+   * @return The result vector of the operation.
+   */
+  public Vector<Status> read(String table, Vector<String> keyVec, Set<String> fields,
+                             Vector<HashMap<String, ByteIterator>> result) {
+    int size = keyVec.size();
+    Vector<Status> success = new Vector<>();
+    for (int i = 0; i < size; ++i) {
+      try {
+        success.add(i, read(table, keyVec.elementAt(i), fields, result.elementAt(i)));
+      } catch (Exception ex) {
+        ex.printStackTrace();
+        success.add(i, Status.ERROR);
+      }
+    }
+    return success;
+  }
 
   /**
    * Perform a range scan for a set of records in the database. Each field/value pair from the result will be stored

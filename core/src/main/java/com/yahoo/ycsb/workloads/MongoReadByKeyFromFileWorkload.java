@@ -27,6 +27,7 @@ import java.io.FileReader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
+import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -57,9 +58,13 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public static final String QUEUE_SIZE = "queuesize";
   public static final String QUEUE_SIZE_DEFAULT = "20000";
 
+  public static final String READ_COUNT = "readcount";
+  public static final String READ_COUNT_DEFAULT = "1";
+
 
   private static LinkedBlockingQueue<String> keyQueue = null;
   private static String keyfile;
+  private static int readcount;
 
   public static LinkedBlockingQueue<String> getKeyQueue() {
     return keyQueue;
@@ -87,6 +92,7 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
     final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
     keyQueue = new LinkedBlockingQueue<>();
+    readcount = Integer.parseInt(p.getProperty(READ_COUNT, READ_COUNT_DEFAULT));
 
 
     // 单线程不断的从文件收集key
@@ -131,21 +137,31 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
 
   public boolean doTransactionRead(DB db) {
-    String key;
+    Vector<String> keyVec = new Vector<>(readcount);
     if (keyFileEof && keyQueue.isEmpty()) {
       return false;
     } else {
-      try {
-        key = keyQueue.take();
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-        return false;
+      for (int i = 0; i < readcount; ++i) {
+        try {
+          keyVec.add(i, keyQueue.take());
+        } catch (InterruptedException e) {
+          if (keyVec.size() == 0) {
+            return false;
+          }
+        }
+      }
+      HashSet<String> fields = null;
+      if (keyVec.size() == 1) {
+        HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
+        db.read(table, keyVec.firstElement(), fields, cells);
+      } else {
+        Vector<HashMap<String, ByteIterator>> cells = new Vector<>(keyVec.size());
+        for (int i = 0; i < keyVec.size(); ++i) {
+          cells.add(new HashMap<String, ByteIterator>());
+        }
+        db.read(table, keyVec, fields, cells);
       }
     }
-
-    HashSet<String> fields = null;
-    HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-    db.read(table, key, fields, cells);
     return true;
   }
 

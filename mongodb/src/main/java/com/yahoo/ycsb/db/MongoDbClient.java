@@ -43,7 +43,7 @@ import com.yahoo.ycsb.DB;
 import com.yahoo.ycsb.DBException;
 import com.yahoo.ycsb.Status;
 
-import org.bson.Document;
+import org.bson.*;
 import org.bson.types.*;
 
 import java.util.ArrayList;
@@ -169,12 +169,12 @@ public class MongoDbClient extends DB {
     }
   }
 
-  public Object buildKey(String key) {
+  public BsonValue buildKey(String key) {
     if ("string".equals(keyType) || "String".equals(keyType)) {
-      return key;
+      return new BsonString(key);
     }
     if ("oid".equals(keyType) || "ObjectId".equals(keyType)) {
-      return new ObjectId(key);
+      return new BsonObjectId(new ObjectId(key));
     }
     return null;
   }
@@ -345,8 +345,8 @@ public class MongoDbClient extends DB {
 
       if (fields != null) {
         Document projection = new Document();
-        for (String field : fields) {
-          projection.put(field, INCLUDE);
+        for (String fieldName : fields) {
+          projection.put(fieldName, INCLUDE);
         }
         findIterable.projection(projection);
       }
@@ -354,15 +354,61 @@ public class MongoDbClient extends DB {
       Document queryResult = findIterable.first();
 
       if (queryResult != null) {
-        // disable this tempory
-        //fillMap(result, queryResult);
+        fillMap(result, queryResult);
       }
       return queryResult != null ? Status.OK : Status.NOT_FOUND;
     } catch (Exception e) {
       e.printStackTrace();
-      //System.err.println(e.toString());
       return Status.ERROR;
     }
+  }
+
+  @Override
+  public Vector<Status> read(String table, Vector<String> keyVec, Set<String> fields,
+                             Vector<HashMap<String, ByteIterator>> result) {
+    int size = keyVec.size();
+    Vector<Status> success = new Vector<>();
+    try {
+      MongoCollection<Document> collection = database.getCollection(table);
+      BsonArray array = new BsonArray();
+      for (int i = 0; i < size; ++i) {
+        array.add(buildKey(keyVec.elementAt(i)));
+      }
+      BsonDocument arrKey = new BsonDocument();
+      arrKey.put("$in", array);
+      Document query = new Document(keyName, arrKey);
+
+      FindIterable<Document> findIterable = collection.find(query);
+
+      if (fields != null) {
+        Document projection = new Document();
+        for (String fieldName : fields) {
+          projection.put(fieldName, INCLUDE);
+        }
+        findIterable.projection(projection);
+      }
+
+      MongoCursor<Document> iter = findIterable.iterator();
+      int i = 0;
+      while (iter.hasNext()) {
+        try {
+          Document queryResult = iter.next();
+          if (queryResult != null) {
+            fillMap(result.elementAt(i), queryResult);
+          }
+          success.add(i, queryResult != null ? Status.OK : Status.NOT_FOUND);
+        } catch (Exception e) {
+          success.add(i, Status.NOT_FOUND);
+        }
+      }
+      for (; i < size; ++i) {
+        success.add(i, Status.NOT_FOUND);
+      }
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return success;
   }
 
   /**
