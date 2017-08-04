@@ -140,6 +140,35 @@ public class DBWrapper extends DB {
   }
 
   /**
+   * Read a record from the database. Each field/value pair from the result
+   * will be stored in a HashMap.
+   *
+   * @param table  The name of the table
+   * @param keyVec The record key vector of the record to read.
+   * @param fields The list of fields to read, or null for all of them
+   * @param result A HashMap of field/value pairs for the result
+   * @return The result vector of the operation.
+   */
+  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
+                                  Vector<HashMap<String, ByteIterator>> result) {
+    try (final TraceScope span = tracer.newScope(scopeStringRead)) {
+      long ist = measurements.getIntendedtartTimeNs();
+      long st = System.nanoTime();
+      Vector<Status> res = db.batchRead(table, keyVec, fields, result);
+      long en = System.nanoTime();
+      double dst = st;
+      double add = (en - st) * 1.0 / res.size();
+      for (int i = 0; i < res.size(); ++i) {
+        measure("READ", res.elementAt(i), ist, (long)dst, (long)(dst + add));
+        dst += add;
+        measurements.reportStatus("READ", res.elementAt(i));
+
+      }
+      return res;
+    }
+  }
+
+  /**
    * Perform a range scan for a set of records in the database.
    * Each field/value pair from the result will be stored in a HashMap.
    *
