@@ -58,13 +58,13 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public static final String QUEUE_SIZE = "queuesize";
   public static final String QUEUE_SIZE_DEFAULT = "20000";
 
-  public static final String READ_COUNT = "readcount";
-  public static final String READ_COUNT_DEFAULT = "1";
+  public static final String BATCH_READ = "batchread";
+  public static final String BATCH_READ_DEFAULT = "1";
 
 
   private static LinkedBlockingQueue<String> keyQueue = null;
   private static String keyfile;
-  private static int readcount;
+  private static int batchread;
 
   public static LinkedBlockingQueue<String> getKeyQueue() {
     return keyQueue;
@@ -92,7 +92,7 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
     final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
     keyQueue = new LinkedBlockingQueue<>();
-    readcount = Integer.parseInt(p.getProperty(READ_COUNT, READ_COUNT_DEFAULT));
+    batchread = Integer.parseInt(p.getProperty(BATCH_READ, BATCH_READ_DEFAULT));
 
 
     // 单线程不断的从文件收集key
@@ -137,11 +137,11 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
 
   public boolean doTransactionRead(DB db) {
-    Vector<String> keyVec = new Vector<>(readcount);
+    Vector<String> keyVec = new Vector<>(batchread);
     if (keyFileEof && keyQueue.isEmpty()) {
       return false;
     } else {
-      for (int i = 0; i < readcount; ++i) {
+      for (int i = 0; i < batchread; ++i) {
         try {
           keyVec.add(i, keyQueue.take());
         } catch (InterruptedException e) {
