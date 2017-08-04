@@ -400,6 +400,7 @@ public class MongoDbClient extends DB {
         } catch (Exception e) {
           success.add(i, Status.NOT_FOUND);
         }
+        ++i;
       }
       for (; i < size; ++i) {
         success.add(i, Status.NOT_FOUND);
