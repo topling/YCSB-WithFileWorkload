@@ -159,7 +159,7 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
         for (int i = 0; i < keyVec.size(); ++i) {
           cells.add(new HashMap<String, ByteIterator>());
         }
-        db.read(table, keyVec, fields, cells);
+        db.batchRead(table, keyVec, fields, cells);
       }
     }
     return true;

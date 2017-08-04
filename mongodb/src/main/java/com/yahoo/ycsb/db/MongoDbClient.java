@@ -364,8 +364,8 @@ public class MongoDbClient extends DB {
   }
 
   @Override
-  public Vector<Status> read(String table, Vector<String> keyVec, Set<String> fields,
-                             Vector<HashMap<String, ByteIterator>> result) {
+  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
+                                  Vector<HashMap<String, ByteIterator>> result) {
     int size = keyVec.size();
     Vector<Status> success = new Vector<>();
     try {

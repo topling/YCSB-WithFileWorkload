@@ -96,8 +96,8 @@ public abstract class DB {
    * @param result A HashMap of field/value pairs for the result
    * @return The result vector of the operation.
    */
-  public Vector<Status> read(String table, Vector<String> keyVec, Set<String> fields,
-                             Vector<HashMap<String, ByteIterator>> result) {
+  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
+                                  Vector<HashMap<String, ByteIterator>> result) {
     int size = keyVec.size();
     Vector<Status> success = new Vector<>();
     for (int i = 0; i < size; ++i) {
