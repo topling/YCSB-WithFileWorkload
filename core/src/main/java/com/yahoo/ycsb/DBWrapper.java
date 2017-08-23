@@ -149,19 +149,19 @@ public class DBWrapper extends DB {
    * @param result A HashMap of field/value pairs for the result
    * @return The result vector of the operation.
    */
-  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
-                                  Vector<HashMap<String, ByteIterator>> result) {
+  public ArrayList<Status> batchRead(String table, ArrayList<String> keyArr, Set<String> fields,
+                                     Vector<HashMap<String, ByteIterator>> result) {
     try (final TraceScope span = tracer.newScope(scopeStringRead)) {
       long ist = measurements.getIntendedtartTimeNs();
       long st = System.nanoTime();
-      Vector<Status> res = db.batchRead(table, keyVec, fields, result);
+      ArrayList<Status> res = db.batchRead(table, keyArr, fields, result);
       long en = System.nanoTime();
       double dst = st;
       double add = (en - st) * 1.0 / res.size();
       for (int i = 0; i < res.size(); ++i) {
-        measure("READ", res.elementAt(i), ist, (long)dst, (long)(dst + add));
+        measure("READ", res.get(i), ist, (long)dst, (long)(dst + add));
         dst += add;
-        measurements.reportStatus("READ", res.elementAt(i));
+        measurements.reportStatus("READ", res.get(i));
 
       }
       return res;

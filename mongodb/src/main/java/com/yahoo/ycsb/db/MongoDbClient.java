@@ -68,6 +68,37 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MongoDbClient extends DB {
 
+  /**
+   * ObjectHolderByteIterator.
+   */
+  public class ObjectHolderByteIterator extends ByteIterator {
+
+    private Object obj;
+    public Object getObj() {
+      return obj;
+    }
+
+    public ObjectHolderByteIterator(Object o) {
+      obj = o;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return false;
+    }
+
+    @Override
+    public byte nextByte() {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public long bytesLeft() {
+      return 0;
+    }
+  }
+
+
   /** Used to include a field in a response. */
   private static final Integer INCLUDE = Integer.valueOf(1);
 
@@ -275,10 +306,8 @@ public class MongoDbClient extends DB {
                        HashMap<String, ByteIterator> values) {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
-      Document toInsert = new Document("_id", key);
-      for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-        toInsert.put(entry.getKey(), entry.getValue().toArray());
-      }
+      Document toInsert = new Document("_id", buildKey(key));
+      fillObject(toInsert, values);
 
       if (batchSize == 1) {
         if (useUpsert) {
@@ -364,15 +393,15 @@ public class MongoDbClient extends DB {
   }
 
   @Override
-  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
-                                  Vector<HashMap<String, ByteIterator>> result) {
-    int size = keyVec.size();
-    Vector<Status> success = new Vector<>();
+  public ArrayList<Status> batchRead(String table, ArrayList<String> keyArr, Set<String> fields,
+                                     Vector<HashMap<String, ByteIterator>> result) {
+    int size = keyArr.size();
+    ArrayList<Status> success = new ArrayList<Status>(size);
     try {
       MongoCollection<Document> collection = database.getCollection(table);
       BsonArray array = new BsonArray();
       for (int i = 0; i < size; ++i) {
-        array.add(buildKey(keyVec.elementAt(i)));
+        array.add(buildKey(keyArr.get(i)));
       }
       BsonDocument arrKey = new BsonDocument();
       arrKey.put("$in", array);
@@ -395,16 +424,21 @@ public class MongoDbClient extends DB {
           Document queryResult = iter.next();
           if (queryResult != null) {
             fillMap(result.elementAt(i), queryResult);
+            keyArr.set(i, queryResult.get("_id").toString());
+            success.add(i, Status.OK);
+          } else {
+            throw new RuntimeException("nop");
           }
-          success.add(i, queryResult != null ? Status.OK : Status.NOT_FOUND);
         } catch (Exception e) {
+          keyArr.set(i, null);
           success.add(i, Status.NOT_FOUND);
         }
         ++i;
       }
-      for (; i < size; ++i) {
-        success.add(i, Status.NOT_FOUND);
+      while (size > i) {
+        keyArr.remove(--size);
       }
+      result.setSize(i);
 
     } catch (Exception e) {
       e.printStackTrace();
@@ -437,7 +471,7 @@ public class MongoDbClient extends DB {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
 
-      Document scanRange = new Document("$gte", startkey);
+      Document scanRange = new Document("$gte", buildKey(startkey));
       Document query = new Document("_id", scanRange);
       Document sort = new Document("_id", INCLUDE);
 
@@ -502,11 +536,9 @@ public class MongoDbClient extends DB {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
 
-      Document query = new Document("_id", key);
+      Document query = new Document("_id", buildKey(key));
       Document fieldsToSet = new Document();
-      for (Map.Entry<String, ByteIterator> entry : values.entrySet()) {
-        fieldsToSet.put(entry.getKey(), entry.getValue().toArray());
-      }
+      fillObject(fieldsToSet, values);
       Document update = new Document("$set", fieldsToSet);
 
       UpdateResult result = collection.updateOne(query, update);
@@ -522,10 +554,30 @@ public class MongoDbClient extends DB {
   }
 
   /**
+   * Fills the DBObject with the map from the workload.
+   *
+   * @param resultObj
+   *          The obj to fill
+   * @param map
+   *          The map to copy values from
+   */
+  protected void fillObject(Document resultObj, Map<String, ByteIterator> map) {
+    for (Map.Entry<String, ByteIterator> entry : map.entrySet()) {
+      if (entry.getValue() instanceof ObjectHolderByteIterator) {
+        resultObj.put(entry.getKey(),
+            ((ObjectHolderByteIterator) entry.getValue()).getObj());
+      } else if (!"_id".equals(entry.getKey())) {
+        resultObj.put(entry.getKey(), entry.getValue().toArray());
+      }
+    }
+  }
+
+
+  /**
    * Fills the map with the values from the DBObject.
    *
    * @param resultMap
-   *          The map to fill/
+   *          The map to fill
    * @param obj
    *          The object to copy values from.
    */
@@ -534,6 +586,8 @@ public class MongoDbClient extends DB {
       if (entry.getValue() instanceof Binary) {
         resultMap.put(entry.getKey(),
             new ByteArrayByteIterator(((Binary) entry.getValue()).getData()));
+      } else {
+        resultMap.put(entry.getKey(), new ObjectHolderByteIterator(entry.getValue()));
       }
     }
   }

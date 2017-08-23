@@ -17,10 +17,7 @@
 
 package com.yahoo.ycsb.workloads;
 
-import com.yahoo.ycsb.ByteIterator;
-import com.yahoo.ycsb.DB;
-import com.yahoo.ycsb.Workload;
-import com.yahoo.ycsb.WorkloadException;
+import com.yahoo.ycsb.*;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -28,6 +25,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Vector;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -51,7 +49,11 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
    */
   public static final String TABLENAME_PROPERTY_DEFAULT = "usertable";
 
+  public static final String WRITE_TABLENAME_PROPERTY = "writetable";
+  public static final String WRITE_TABLENAME_PROPERTY_DEFAULT = "usertable_for_write";
+
   protected static String table;
+  protected static String writetable;
 
   public static final String KEY_FILE = "keyfile";
 
@@ -61,12 +63,19 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   public static final String BATCH_READ = "batchread";
   public static final String BATCH_READ_DEFAULT = "1";
 
+  public static final String WRITE_RATE = "writerate";
+  public static final String WRITE_RATE_DEFAULT = "0";
 
-  private static LinkedBlockingQueue<String> keyQueue = null;
+
+  private static LinkedBlockingQueue<ArrayList<String>> keyQueue = null;
   private static String keyfile;
   private static int batchread;
+  private static int getBatchread() {
+    return batchread;
+  }
+  private static double writerate;
 
-  public static LinkedBlockingQueue<String> getKeyQueue() {
+  public static LinkedBlockingQueue<ArrayList<String>> getKeyQueue() {
     return keyQueue;
   }
   public static String getKeyfile() {
@@ -87,12 +96,14 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
   @Override
   public void init(Properties p) throws WorkloadException {
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
+    writetable = p.getProperty(WRITE_TABLENAME_PROPERTY, WRITE_TABLENAME_PROPERTY_DEFAULT);
 
     keyfile = p.getProperty(KEY_FILE, KEY_FILE);
 
     final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
     keyQueue = new LinkedBlockingQueue<>();
     batchread = Integer.parseInt(p.getProperty(BATCH_READ, BATCH_READ_DEFAULT));
+    writerate = Double.parseDouble(p.getProperty(WRITE_RATE, WRITE_RATE_DEFAULT));
 
 
     // 单线程不断的从文件收集key
@@ -101,11 +112,22 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
       public void run() {
         try {
           BufferedReader reader = new BufferedReader(new FileReader(getKeyfile()));
-          String line = reader.readLine();
-          while (line != null && !getIsStop()) {
+          ArrayList<String> strArr;
+          int batch = getBatchread();
+          while (!getIsStop()) {
             if(keyQueue.size() < queuesize){
-              keyQueue.add(line);
-              line = reader.readLine();
+              strArr = new ArrayList<String>(batch);
+              for (int i = 0; i < batch; ++i) {
+                String line = reader.readLine();
+                if (line == null) {
+                  if (i > 0) {
+                    keyQueue.add(strArr);
+                  }
+                  throw new Exception("eof");
+                }
+                strArr.add(line);
+              }
+              keyQueue.add(strArr);
             }
           }
           reader.close();
@@ -137,29 +159,39 @@ public class MongoReadByKeyFromFileWorkload extends Workload {
 
 
   public boolean doTransactionRead(DB db) {
-    Vector<String> keyVec = new Vector<>(batchread);
+    ArrayList<String> keyVec;
     if (keyFileEof && keyQueue.isEmpty()) {
       return false;
-    } else {
-      for (int i = 0; i < batchread; ++i) {
-        try {
-          keyVec.add(i, keyQueue.take());
-        } catch (InterruptedException e) {
-          if (keyVec.size() == 0) {
-            return false;
-          }
+    }
+    try {
+      keyVec = keyQueue.take();
+    } catch (InterruptedException e) {
+      return false;
+    }
+    HashSet<String> fields = null;
+    if (keyVec.size() == 1) {
+      HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
+      if (db.read(table, keyVec.get(0), fields, cells).isOk() && writerate > 0) {
+        double rand = Math.random();
+        if (rand < writerate) {
+          db.insert(writetable, keyVec.get(0), cells);
         }
       }
-      HashSet<String> fields = null;
-      if (keyVec.size() == 1) {
-        HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-        db.read(table, keyVec.firstElement(), fields, cells);
-      } else {
-        Vector<HashMap<String, ByteIterator>> cells = new Vector<>(keyVec.size());
-        for (int i = 0; i < keyVec.size(); ++i) {
-          cells.add(new HashMap<String, ByteIterator>());
+    } else {
+      Vector<HashMap<String, ByteIterator>> cells = new Vector<>(keyVec.size());
+      for (int i = 0; i < keyVec.size(); ++i) {
+        cells.add(new HashMap<String, ByteIterator>());
+      }
+      ArrayList<Status> results = db.batchRead(table, keyVec, fields, cells);
+      if (writerate > 0) {
+        for (int i = 0; i < results.size(); ++i) {
+          if (results.get(i).isOk()) {
+            double rand = Math.random();
+            if (rand < writerate) {
+              db.insert(writetable, keyVec.get(i), cells.get(i));
+            }
+          }
         }
-        db.batchRead(table, keyVec, fields, cells);
       }
     }
     return true;

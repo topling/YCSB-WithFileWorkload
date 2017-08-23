@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Properties;
 import java.util.Set;
 import java.util.Vector;
+import java.util.ArrayList;
 
 /**
  * A layer for accessing a database to be benchmarked. Each thread in the client
@@ -96,13 +97,13 @@ public abstract class DB {
    * @param result A HashMap of field/value pairs for the result
    * @return The result vector of the operation.
    */
-  public Vector<Status> batchRead(String table, Vector<String> keyVec, Set<String> fields,
-                                  Vector<HashMap<String, ByteIterator>> result) {
-    int size = keyVec.size();
-    Vector<Status> success = new Vector<>();
+  public ArrayList<Status> batchRead(String table, ArrayList<String> keyArr, Set<String> fields,
+                                     Vector<HashMap<String, ByteIterator>> result) {
+    int size = keyArr.size();
+    ArrayList<Status> success = new ArrayList<Status>();
     for (int i = 0; i < size; ++i) {
       try {
-        success.add(i, read(table, keyVec.elementAt(i), fields, result.elementAt(i)));
+        success.add(i, read(table, keyArr.get(i), fields, result.get(i)));
       } catch (Exception ex) {
         ex.printStackTrace();
         success.add(i, Status.ERROR);
