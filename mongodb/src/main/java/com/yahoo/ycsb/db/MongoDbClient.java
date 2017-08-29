@@ -186,7 +186,7 @@ public class MongoDbClient extends DB {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
 
-      Document query = new Document("_id", key);
+      Document query = new Document(keyName, buildKey(key));
       DeleteResult result =
           collection.withWriteConcern(writeConcern).deleteOne(query);
       if (result.wasAcknowledged() && result.getDeletedCount() == 0) {
@@ -306,7 +306,7 @@ public class MongoDbClient extends DB {
                        HashMap<String, ByteIterator> values) {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
-      Document toInsert = new Document("_id", buildKey(key));
+      Document toInsert = new Document(keyName, buildKey(key));
       fillObject(toInsert, values);
 
       if (batchSize == 1) {
@@ -314,7 +314,7 @@ public class MongoDbClient extends DB {
           // this is effectively an insert, but using an upsert instead due
           // to current inability of the framework to clean up after itself
           // between test runs.
-          collection.replaceOne(new Document("_id", toInsert.get("_id")),
+          collection.replaceOne(new Document(keyName, toInsert.get(keyName)),
               toInsert, UPDATE_WITH_UPSERT);
         } else {
           collection.insertOne(toInsert);
@@ -327,7 +327,7 @@ public class MongoDbClient extends DB {
                 new ArrayList<UpdateOneModel<Document>>(bulkInserts.size());
             for (Document doc : bulkInserts) {
               updates.add(new UpdateOneModel<Document>(
-                  new Document("_id", doc.get("_id")),
+                  new Document(keyName, doc.get(keyName)),
                   doc, UPDATE_WITH_UPSERT));
             }
             collection.bulkWrite(updates);
@@ -424,7 +424,7 @@ public class MongoDbClient extends DB {
           Document queryResult = iter.next();
           if (queryResult != null) {
             fillMap(result.elementAt(i), queryResult);
-            keyArr.set(i, queryResult.get("_id").toString());
+            keyArr.set(i, queryResult.get(keyName).toString());
             success.add(i, Status.OK);
           } else {
             throw new RuntimeException("nop");
@@ -472,8 +472,8 @@ public class MongoDbClient extends DB {
       MongoCollection<Document> collection = database.getCollection(table);
 
       Document scanRange = new Document("$gte", buildKey(startkey));
-      Document query = new Document("_id", scanRange);
-      Document sort = new Document("_id", INCLUDE);
+      Document query = new Document(keyName, scanRange);
+      Document sort = new Document(keyName, INCLUDE);
 
       FindIterable<Document> findIterable =
           collection.find(query).sort(sort).limit(recordcount);
@@ -536,7 +536,7 @@ public class MongoDbClient extends DB {
     try {
       MongoCollection<Document> collection = database.getCollection(table);
 
-      Document query = new Document("_id", buildKey(key));
+      Document query = new Document(keyName, buildKey(key));
       Document fieldsToSet = new Document();
       fillObject(fieldsToSet, values);
       Document update = new Document("$set", fieldsToSet);
@@ -563,10 +563,12 @@ public class MongoDbClient extends DB {
    */
   protected void fillObject(Document resultObj, Map<String, ByteIterator> map) {
     for (Map.Entry<String, ByteIterator> entry : map.entrySet()) {
-      if (entry.getValue() instanceof ObjectHolderByteIterator) {
+      if (keyName.equals(entry.getKey())) {
+        continue;
+      } else if (entry.getValue() instanceof ObjectHolderByteIterator) {
         resultObj.put(entry.getKey(),
             ((ObjectHolderByteIterator) entry.getValue()).getObj());
-      } else if (!"_id".equals(entry.getKey())) {
+      } else {
         resultObj.put(entry.getKey(), entry.getValue().toArray());
       }
     }
