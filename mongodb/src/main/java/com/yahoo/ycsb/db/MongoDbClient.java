@@ -37,11 +37,7 @@ import com.mongodb.client.model.UpdateOneModel;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
-import com.yahoo.ycsb.ByteArrayByteIterator;
-import com.yahoo.ycsb.ByteIterator;
-import com.yahoo.ycsb.DB;
-import com.yahoo.ycsb.DBException;
-import com.yahoo.ycsb.Status;
+import com.yahoo.ycsb.*;
 
 import org.bson.*;
 import org.bson.types.*;
@@ -568,6 +564,8 @@ public class MongoDbClient extends DB {
       } else if (entry.getValue() instanceof ObjectHolderByteIterator) {
         resultObj.put(entry.getKey(),
             ((ObjectHolderByteIterator) entry.getValue()).getObj());
+      } else if (entry.getValue() instanceof StringByteIterator) {
+        resultObj.put(entry.getKey(), entry.getValue().toString());
       } else {
         resultObj.put(entry.getKey(), entry.getValue().toArray());
       }
