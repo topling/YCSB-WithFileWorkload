@@ -32,7 +32,7 @@ public class PhoenixDBFlavor extends DefaultDBFlavor {
     // Phoenix uses UPSERT syntax
     StringBuilder insert = new StringBuilder("UPSERT INTO ");
     insert.append(insertType.getTableName());
-    insert.append(" (" + JdbcDBClient.PRIMARY_KEY + "," + insertType.getFieldString() + ")");
+    insert.append(" (" + JdbcDBClient.getPrimarykey() + "," + insertType.getFieldString() + ")");
     insert.append(" VALUES(?");
     for (int i = 0; i < insertType.getNumFields(); i++) {
       insert.append(",?");
@@ -53,7 +53,7 @@ public class PhoenixDBFlavor extends DefaultDBFlavor {
       update.append(fieldKeys[i]).append(",");
     }
     // And then set the primary key column
-    update.append(JdbcDBClient.PRIMARY_KEY).append(") VALUES(");
+    update.append(JdbcDBClient.getPrimarykey()).append(") VALUES(");
     // Add an unbound param for each column to update
     for (int i = 0; i < fieldKeys.length; i++) {
       update.append("?, ");

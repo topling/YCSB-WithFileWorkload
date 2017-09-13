@@ -76,8 +76,29 @@ public class JdbcDBClient extends DB {
   /** Representing a NULL value. */
   public static final String NULL_VALUE = "NULL";
 
+  /** The name of primary key. */
+  public static final String PRIMARY_KEY_NAME = "primarykey";
+
+  /** Default name of primary key. */
+  public static final String PRIMARY_KEY_NAME_DEFAULT = "YCSB_KEY";
+
+  /** Whether to use insert replace. */
+  public static final String USE_UPSERT = "mysql.upsert";
+
+  /** Default value of whether to use insert replace. */
+  public static final String USE_UPSERT_DEFAULT = "false";
+
+  private static boolean useupsert;
+  public static boolean getUseupsert() {
+    return useupsert;
+  }
+
   /** The primary key in the user table. */
-  public static final String PRIMARY_KEY = "YCSB_KEY";
+  private static String primarykey = "YCSB_KEY";
+  public static String getPrimarykey() {
+    return primarykey;
+  }
+
 
   /** The field name prefix in the table. */
   public static final String COLUMN_PREFIX = "FIELD";
@@ -182,6 +203,8 @@ public class JdbcDBClient extends DB {
     String user = props.getProperty(CONNECTION_USER, DEFAULT_PROP);
     String passwd = props.getProperty(CONNECTION_PASSWD, DEFAULT_PROP);
     String driver = props.getProperty(DRIVER_CLASS);
+    primarykey = props.getProperty(PRIMARY_KEY_NAME, PRIMARY_KEY_NAME_DEFAULT);
+    useupsert = Boolean.valueOf(props.getProperty(USE_UPSERT, USE_UPSERT_DEFAULT));
 
     this.jdbcFetchSize = getIntProperty(props, JDBC_FETCH_SIZE);
     this.batchSize = getIntProperty(props, DB_BATCH_SIZE);
@@ -401,8 +424,14 @@ public class JdbcDBClient extends DB {
     try {
       int numFields = values.size();
       OrderedFieldInfo fieldInfo = getFieldInfo(values);
-      StatementType type = new StatementType(StatementType.Type.INSERT, tableName,
-          numFields, fieldInfo.getFieldKeys(), getShardIndexByKey(key));
+      StatementType type;
+      if (useupsert) {
+        type = new StatementType(StatementType.Type.INSERTREPLACE, tableName,
+                numFields, fieldInfo.getFieldKeys(), getShardIndexByKey(key));
+      } else {
+        type = new StatementType(StatementType.Type.INSERT, tableName,
+                numFields, fieldInfo.getFieldKeys(), getShardIndexByKey(key));
+      }
       PreparedStatement insertStatement = cachedStatements.get(type);
       if (insertStatement == null) {
         insertStatement = createAndCacheInsertStatement(type, key);
@@ -452,7 +481,7 @@ public class JdbcDBClient extends DB {
             getShardConnectionByKey(key).commit();
           }
         }
-        if (result == 1) {
+        if (result == 1 || result == 2) {
           return Status.OK;
         }
       }

@@ -54,7 +54,18 @@ public class MySQLReadByKeyFromFileWorkload extends Workload {
   protected static String writetable;
 
   private static final String KEY_FILE = "keyfile";
-  private static final String KEY_FILE_DEFAULT = "/data/publicdata/wikipedia/wikipedia_key.txt";
+  private static final String KEY_FILE_DEFAULT = "/data/publicdata/wikipedia/wikipedia_text_old_ids.txt";
+
+  /**
+   *  A String of the fieldnames split by.
+   */
+  private static final String FIELD_NAMES = "fieldnames";
+  /**
+   *  Default value of fieldnames.
+   */
+  private static final String FIELD_NAMES_DEFAULTS = null;
+
+  protected HashSet<String> fieldnames;
 
   /**
    *  The size of data queue.
@@ -65,10 +76,19 @@ public class MySQLReadByKeyFromFileWorkload extends Workload {
    */
   public static final String QUEUE_SIZE_DEFAULT = "20000";
 
-  public static final String BATCH_READ = "batchread";
-  public static final String BATCH_READ_DEFAULT = "1";
-
   private static LinkedBlockingQueue<String> keyQueue = null;
+
+  /** The name of primary key. */
+  public static final String PRIMARY_KEY_NAME = "primarykey";
+
+  /** Default name of primary key. */
+  public static final String PRIMARY_KEY_NAME_DEFAULT = "YCSB_KEY";
+
+  /** The primary key in the user table. */
+  private static String primarykey = "YCSB_KEY";
+  public static String getPrimarykey() {
+    return primarykey;
+  }
 
   private static String keyfile;
   public static String getkeyfile() {
@@ -76,6 +96,9 @@ public class MySQLReadByKeyFromFileWorkload extends Workload {
   }
 
   private static double writerate;
+  public static double getWriterate() {
+    return writerate;
+  }
 
   private static volatile boolean keyFileEof = false;
   private static volatile boolean isStop = false;
@@ -96,6 +119,17 @@ public class MySQLReadByKeyFromFileWorkload extends Workload {
     final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
 
     keyfile = p.getProperty(KEY_FILE, KEY_FILE_DEFAULT);
+
+    primarykey = p.getProperty(PRIMARY_KEY_NAME, PRIMARY_KEY_NAME_DEFAULT);
+    String fieldNamesStr = p.getProperty(FIELD_NAMES, FIELD_NAMES_DEFAULTS);
+    fieldnames = new HashSet<>();
+    if (fieldNamesStr != null) {
+      List<String> fieldnamelist = Arrays.asList(fieldNamesStr.split(","));
+      for (String field : fieldnamelist) {
+        fieldnames.add(field);
+      }
+    }
+
     keyQueue = new LinkedBlockingQueue<>();
 
     writetable = p.getProperty(WRITE_TABLENAME_PROPERTY, WRITE_TABLENAME_PROPERTY_DEFAULT);
@@ -148,11 +182,13 @@ public class MySQLReadByKeyFromFileWorkload extends Workload {
       return false;
     }
 
-    HashSet<String> fields = null;
-    HashMap<String, ByteIterator> cells = new HashMap<String, ByteIterator>();
-    if (db.read(table, key, fields, cells).isOk() && writerate > 0) {
+    HashMap<String, ByteIterator> cells = new HashMap<>();
+    if (db.read(table, key, fieldnames, cells).isOk() && writerate > 0) {
       double rand = Math.random();
       if (rand < writerate) {
+        if (cells.get(primarykey) != null) {
+          cells.remove(primarykey);
+        }
         db.insert(writetable, key, cells);
       }
     }
