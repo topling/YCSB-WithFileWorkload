@@ -126,6 +126,7 @@ public class FileWorkload extends CoreWorkload {
     return fieldnum;
   }
   protected List<String> fieldnames;
+  protected HashSet<String> fieldnamesset;
   private ArrayList<Boolean> keyfieldsbits;
 
   private static String delimiter;
@@ -163,8 +164,10 @@ public class FileWorkload extends CoreWorkload {
     usecustomkey = Boolean.valueOf(p.getProperty(USE_CUSTOM_KEY, USE_CUSTOM_KEY_DEFAULT));
     System.err.println("usecustomkey: " + usecustomkey);
     String fieldNamesStr = p.getProperty(FIELD_NAMES, FIELD_NAMES_DEFAULTS);
+    fieldnamesset = new HashSet<>();
     if (fieldNamesStr != null) {
       fieldnames = Arrays.asList(fieldNamesStr.split(","));
+      fieldnamesset.addAll(fieldnames);
     }
 
     delimiter = p.getProperty(DATA_FILE_DELIMITER, DATA_FILE_DELIMIITER_DEFAULT);
@@ -367,11 +370,11 @@ public class FileWorkload extends CoreWorkload {
     if (keyFileEof && keyQueue.isEmpty()) {
       return false;
     }
-    HashSet<String> fields = null;
+    //HashSet<String> fields = null;
     if (getBatchread() == 1) {
       String keyname = buildKeysInRead();
       HashMap<String, ByteIterator> cells = new HashMap<>();
-      Status status = db.read(table, keyname, fields, cells);
+      Status status = db.read(table, keyname, fieldnamesset, cells);
 
       double rand = Math.random();
       if(rand < writerate && status.isOk()) {
@@ -387,7 +390,7 @@ public class FileWorkload extends CoreWorkload {
       for (int i = 0; i < keynames.size(); ++i) {
         cells.add(new HashMap<String, ByteIterator>());
       }
-      ArrayList<Status> results = db.batchRead(table, keynames, fields, cells);
+      ArrayList<Status> results = db.batchRead(table, keynames, fieldnamesset, cells);
       if (writerate > 0) {
         for (int i = 0; i < results.size(); ++i) {
           if (results.get(i).isOk()) {

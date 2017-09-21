@@ -450,7 +450,7 @@ public class JdbcDBClient extends DB {
           if (++numRowsInBatch % batchSize == 0) {
             int[] results = insertStatement.executeBatch();
             for (int r : results) {
-              if (r != 1) {
+              if (r != 1 || r != 2) {
                 return Status.ERROR;
               }
             }
