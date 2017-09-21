@@ -164,10 +164,8 @@ public class FileWorkload extends CoreWorkload {
     usecustomkey = Boolean.valueOf(p.getProperty(USE_CUSTOM_KEY, USE_CUSTOM_KEY_DEFAULT));
     System.err.println("usecustomkey: " + usecustomkey);
     String fieldNamesStr = p.getProperty(FIELD_NAMES, FIELD_NAMES_DEFAULTS);
-    fieldnamesset = new HashSet<>();
     if (fieldNamesStr != null) {
       fieldnames = Arrays.asList(fieldNamesStr.split(","));
-      fieldnamesset.addAll(fieldnames);
     }
 
     delimiter = p.getProperty(DATA_FILE_DELIMITER, DATA_FILE_DELIMIITER_DEFAULT);
@@ -177,6 +175,12 @@ public class FileWorkload extends CoreWorkload {
     for (String fieldStr : keyfieldsStr) {
       Integer keyindex = Integer.valueOf(fieldStr);
       keyfieldsbits.set(keyindex, true);
+    }
+    fieldnamesset = new HashSet<>();
+    for (int i = 0; i < fieldnames.size(); ++i) {
+      if (!keyfieldsbits.get(i)) {
+        fieldnamesset.add(fieldnames.get(i));
+      }
     }
 
     dotransactions = Boolean.valueOf(p.getProperty(Client.DO_TRANSACTIONS_PROPERTY, String.valueOf(true)));
