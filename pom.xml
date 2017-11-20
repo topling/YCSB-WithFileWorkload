@@ -109,7 +109,7 @@ LICENSE file.
     <module>core</module>
     <module>binding-parent</module>
     <!-- all the datastore bindings, lex sorted please -->
-    <module>accumulo</module>
+    <!--<module>accumulo</module>
     <module>aerospike</module>
     <module>arangodb</module>
     <module>arangodb3</module>
@@ -131,13 +131,13 @@ LICENSE file.
     <module>hbase10</module>
     <module>hbase12</module>
     <module>hypertable</module>
-    <module>infinispan</module>
+    <module>infinispan</module>-->
     <module>jdbc</module>
-    <module>kudu</module>
+    <!--<module>kudu</module>-->
     <!--<module>mapkeeper</module>-->
-    <module>memcached</module>
+    <!--<module>memcached</module>-->
     <module>mongodb</module>
-    <module>nosqldb</module>
+    <!--<module>nosqldb</module>
     <module>orientdb</module>
     <module>rados</module>
     <module>redis</module>
@@ -146,7 +146,7 @@ LICENSE file.
     <module>s3</module>
     <module>solr</module>
     <module>solr6</module>
-    <module>tarantool</module>
+    <module>tarantool</module>-->
     <!--<module>voldemort</module>-->
   </modules>
 

@@ -18,6 +18,7 @@
 package com.yahoo.ycsb.workloads;
 
 import com.yahoo.ycsb.*;
+import com.yahoo.ycsb.generator.DiscreteGenerator;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -99,6 +100,35 @@ public class FileWorkload extends CoreWorkload {
 
   public static final String USE_CUSTOM_KEY = "usecustomkey";
   public static final String USE_CUSTOM_KEY_DEFAULT = "false";
+
+  public static final String THREAD_PLAN = "threadplan";
+  public static final String THREAD_PLAN_DEFAULT = "0-0:1,0";
+
+  public static final String WRITE_IN_READ = "writeinread";
+  public static final String WRITE_IN_READ_DEFAULT = "true";
+
+  /**
+   * The name of the property for the proportion of transactions that are reads.
+   */
+  public static final String READ_PROPORTION_PROPERTY = "readproportion";
+
+  /**
+   * The default proportion of transactions that are reads.
+   */
+  public static final String READ_PROPORTION_PROPERTY_DEFAULT = "0.95";
+
+  /**
+   * The name of the property for the proportion of transactions that are inserts.
+   */
+  public static final String INSERT_PROPORTION_PROPERTY = "insertproportion";
+
+  /**
+   * The default proportion of transactions that are inserts.
+   */
+  public static final String INSERT_PROPORTION_PROPERTY_DEFAULT = "0.05";
+
+  protected DiscreteGenerator operationchooser;
+
   /**
    *  Data queue store lines to insert.
    */
@@ -140,15 +170,19 @@ public class FileWorkload extends CoreWorkload {
     return isStop;
   }
 
-
-
   protected boolean usecustomkey;
   private static boolean dotransactions = true;
   public static boolean getDotransactions() {
     return dotransactions;
   }
 
+  private boolean writeinread;
+  public boolean getWriteinread() {
+    return writeinread;
+  }
+
   private static ExecutorService producer = Executors.newFixedThreadPool(1);
+
 
   /**
    * Initialize the scenario.
@@ -158,6 +192,7 @@ public class FileWorkload extends CoreWorkload {
   public void init(Properties p) throws WorkloadException {
     super.init(p);
     table = p.getProperty(TABLENAME_PROPERTY, TABLENAME_PROPERTY_DEFAULT);
+    writetable = p.getProperty(WRITE_TABLENAME_PROPERTY, WRITE_TABLENAME_PROPERTY_DEFAULT);
 
     final int queuesize = Integer.parseInt(p.getProperty(QUEUE_SIZE, QUEUE_SIZE_DEFAULT));
 
@@ -183,11 +218,15 @@ public class FileWorkload extends CoreWorkload {
       }
     }
 
-    dotransactions = Boolean.valueOf(p.getProperty(Client.DO_TRANSACTIONS_PROPERTY, String.valueOf(true)));
+    writeinread = Boolean.valueOf(p.getProperty(WRITE_IN_READ, WRITE_IN_READ_DEFAULT));
 
-    if(!getDotransactions()) {   // insert
+    dotransactions = Boolean.valueOf(p.getProperty(Client.DO_TRANSACTIONS_PROPERTY, String.valueOf(true)));
+    keyQueue = new LinkedBlockingQueue<>();
+
+    if((!getDotransactions()) || (!getWriteinread())) {   // insert
       datafile = p.getProperty(DATA_FILE, DATA_FILE_DEFAULT);
       dataQueue = new LinkedBlockingQueue<>();
+      operationchooser = createOperationGenerator(p);
 
       // 单线程不断的从文件收集key
       producer.execute(new Runnable() {
@@ -214,40 +253,42 @@ public class FileWorkload extends CoreWorkload {
         }
       });
     } else {
-      keyfile = p.getProperty(KEY_FILE, KEY_FILE_DEFAULT);
-      keyQueue = new LinkedBlockingQueue<>();
-
       batchread = Integer.parseInt(p.getProperty(BATCH_READ, BATCH_READ_DEFAULT));
-      writetable = p.getProperty(WRITE_TABLENAME_PROPERTY, WRITE_TABLENAME_PROPERTY_DEFAULT);
       writerate = Double.parseDouble(p.getProperty(WRITE_RATE, WRITE_RATE_DEFAULT));
 
-      producer.execute(new Runnable() {
-        @Override
-        public void run() {
-          try {
-            BufferedReader reader = new BufferedReader(new FileReader(getkeyfile()));
-            while (!getIsStop()) {
-              if (keyQueue.size() < queuesize) {
-                String line = reader.readLine();
-                if (line == null) {
-                  keyFileEof = true;
-                  break;
+      if (!getWriteinread()) {
+        keyfile = p.getProperty(KEY_FILE, KEY_FILE_DEFAULT);
+        producer.execute(new Runnable() {
+          @Override
+          public void run() {
+            try {
+              BufferedReader reader = new BufferedReader(new FileReader(getkeyfile()));
+              while (!getIsStop()) {
+                if (keyQueue.size() < queuesize) {
+                  String line = reader.readLine();
+                  if (line == null) {
+                    keyFileEof = true;
+                    break;
+                  }
+                  keyQueue.add(line);
                 }
-                keyQueue.add(line);
               }
+              reader.close();
+            } catch (Exception e) {
+              throw new RuntimeException(("KeyFile read error : " + e.getCause().getMessage()));
+            } finally {
+              keyFileEof = true;
             }
-            reader.close();
-          } catch (Exception e) {
-            throw new RuntimeException(("KeyFile read error : " + e.getCause().getMessage()));
-          } finally {
-            keyFileEof = true;
           }
-        }
-      });
+        });
+      }
     }
   }
 
   private HashMap<String, ByteIterator> buildValues(String[] fields) {
+    if (fields.length < fieldnum) {
+      throw new RuntimeException("Data fields length error");
+    }
     HashMap<String, ByteIterator> values = new HashMap<>();
     if (fieldnames == null || fieldnames.isEmpty()) {
       int valueCnt = 0;
@@ -267,6 +308,9 @@ public class FileWorkload extends CoreWorkload {
   }
 
   private String buildKeys(String[] fields) {
+    if (fields.length < fieldnum) {
+      throw new RuntimeException("Data fields length error");
+    }
     String key;
     if (usecustomkey) {
       StringBuilder sb = new StringBuilder();
@@ -285,7 +329,6 @@ public class FileWorkload extends CoreWorkload {
       int keynum = keysequence.nextValue().intValue();
       key = buildKeyName(keynum);
     }
-
     return key;
   }
 
@@ -298,16 +341,14 @@ public class FileWorkload extends CoreWorkload {
     String line, dbkey;
     try {
       line = dataQueue.take();
-//      for(int i = 0; i < fieldnames.size(); ++i) {
-//        values.put(fieldnames.get(i), new StringByteIterator(strings[i]));
-//      }
-//      int keynum = keysequence.nextValue().intValue();
-//      dbkey = buildKeyName(keynum);
-
     } catch (Exception e) {
       throw new RuntimeException("Data convert error: " + e.getCause().getMessage());
     }
     String[] strings = line.split(getDelimiter());
+    if (strings.length < fieldnum) {
+      System.err.println("There too little fields in the data: " + line);
+      return true;
+    }
     values = buildValues(strings);
     dbkey = buildKeys(strings);
     Status status;
@@ -366,7 +407,22 @@ public class FileWorkload extends CoreWorkload {
    */
   @Override
   public boolean doTransaction(DB db, Object threadstate) {
-    return doRead(db);
+    if (getWriteinread()) {
+      return doRead(db);
+    } else {
+      String operation = operationchooser.nextString();
+      if (operation == null) {
+        return false;
+      }
+      switch (operation) {
+      case "READ":
+        return doRead(db);
+      case "INSERT":
+        return doWrite(db);
+      default:
+        return doRead(db);
+      }
+    }
   }
 
 
@@ -381,7 +437,7 @@ public class FileWorkload extends CoreWorkload {
       Status status = db.read(table, keyname, fieldnamesset, cells);
 
       double rand = Math.random();
-      if(rand < writerate && status.isOk()) {
+      if(rand < writerate && status.isOk() && getWriteinread()) {
         db.insert(writetable, keyname, cells);
       }
     } else {
@@ -395,7 +451,7 @@ public class FileWorkload extends CoreWorkload {
         cells.add(new HashMap<String, ByteIterator>());
       }
       ArrayList<Status> results = db.batchRead(table, keynames, fieldnamesset, cells);
-      if (writerate > 0) {
+      if (writerate > 0 && getWriteinread()) {
         for (int i = 0; i < results.size(); ++i) {
           if (results.get(i).isOk()) {
             double rand = Math.random();
@@ -409,6 +465,58 @@ public class FileWorkload extends CoreWorkload {
     return true;
   }
 
+  public boolean doWrite(DB db) {
+    if (dataFileEof && dataQueue.isEmpty()) {
+      return false;
+    }
+
+    if (getWriteinread()) {
+      throw new RuntimeException("Write setting error");
+    }
+
+    HashMap<String, ByteIterator> values;
+    String line, dbkey;
+    try {
+      line = dataQueue.take();
+
+    } catch (Exception e) {
+      throw new RuntimeException("Data convert error: " + e.getCause().getMessage());
+    }
+    String[] strings = line.split(getDelimiter());
+    values = buildValues(strings);
+    dbkey = buildKeys(strings);
+    Status status;
+    int numOfRetries = 0;
+    do {
+      if (dbkey == null) {
+        throw new RuntimeException("dbkey is empty");
+      }
+      status = db.insert(writetable, dbkey, values);
+      if (null != status && status.isOk()) {
+        break;
+      }
+      // Retry if configured. Without retrying, the load process will fail
+      // even if one single insertion fails. User can optionally configure
+      // an insertion retry limit (default is 0) to enable retry.
+      if (++numOfRetries <= insertionRetryLimit) {
+        System.err.println("Retrying write, retry count: " + numOfRetries);
+        try {
+          // Sleep for a random number between [0.8, 1.2)*insertionRetryInterval.
+          int sleepTime = (int) (1000 * insertionRetryInterval * (0.8 + 0.4 * Math.random()));
+          Thread.sleep(sleepTime);
+        } catch (InterruptedException e) {
+          break;
+        }
+      } else {
+        System.err.println("Error writing, not retrying any more. number of attempts: " + numOfRetries +
+                "Write Retry Limit: " + insertionRetryLimit);
+        break;
+      }
+    } while (true);
+
+    return null != status && status.isOk();
+  }
+
   @Override
   public void cleanup() throws WorkloadException {
     isStop = true;
@@ -417,5 +525,36 @@ public class FileWorkload extends CoreWorkload {
     } else {
       dataQueue.clear();
     }
+  }
+
+
+  /**
+   * Creates a weighted discrete values with database operations for a workload to perform.
+   * Weights/proportions are read from the properties list and defaults are used
+   * when values are not configured.
+   * Current operations are "READ", "UPDATE", "INSERT", "SCAN" and "READMODIFYWRITE".
+   *
+   * @param p The properties list to pull weights from.
+   * @return A generator that can be used to determine the next operation to perform.
+   * @throws IllegalArgumentException if the properties object was null.
+   */
+  protected static DiscreteGenerator createOperationGenerator(final Properties p) {
+    if (p == null) {
+      throw new IllegalArgumentException("Properties object cannot be null");
+    }
+    final double readproportion = Double.parseDouble(
+            p.getProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_PROPERTY_DEFAULT));
+    final double insertproportion = Double.parseDouble(
+            p.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
+
+    final DiscreteGenerator operationchooser = new DiscreteGenerator();
+    if (readproportion > 0) {
+      operationchooser.addValue(readproportion, "READ");
+    }
+
+    if (insertproportion > 0) {
+      operationchooser.addValue(insertproportion, "INSERT");
+    }
+    return operationchooser;
   }
 }
