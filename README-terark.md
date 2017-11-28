@@ -54,63 +54,86 @@ mvn package clean
 
 编译后直接在此目录使用即可，也会在相应的目录下的 target 目录生成打包二进制文件
 
+加载数据：
+```
+bin/ycsb load mongodb -s -P test.conf -threads 16
+```
+
+进行测试：
+```
+bin/ycsb run mongodb -s -P test.conf -threads 16
+```
+
 若使用 Wikipedia 数据可使用如下配置
 
 ```
 # wikipedia.conf
 recordcount=38508221
- operationcount=200000
+operationcount=200000
  
- workload=com.yahoo.ycsb.workloads.FileWorkload
+workload=com.yahoo.ycsb.workloads.FileWorkload 
  
+mongodb.url=mongodb://127.0.0.1:27017/test
+mongodb.upsert=true
  
- mongodb.url=mongodb://127.0.0.1:27017/test
- mongodb.upsert=true
+datafile=/path/to/wikipedia.txt
+keyfile=/path/to/wikipedia_key_shuf.txt
  
- datafile=/path/to/wikipedia.txt
- keyfile=/path/to/wikipedia_key.txt
+fieldnames=cur_id,cur_namespace,cur_title,cur_text,cur_comment,cur_user,cur_user_text,cur_timestamp,cur_restrictions,cur_counter,cur_is_redirect,cur_minor_edit,cur_random,cur_touched,inverse_timestamp
+delimiter=\t
+usecustomkey=true
+keyfield=0,1,2
+fieldnum=15
  
- fieldnames=cur_id,cur_namespace,cur_title,cur_text,cur_comment,cur_user,cur_user_text,cur_timestamp,cur_restrictions,cur_counter,cur_is_redirect,cur_minor_edit,cur_random,cur_touched,inverse_timestamp
- delimiter=\t
- usecustomkey=true
- keyfield=0,1,2
- fieldnum=15
- 
- writeinread=flase
- readproportion=0.9
- insertproportion=0.1
+writeinread=flase
+readproportion=0.9
+insertproportion=0.1
 ```
 
-数据可使用 [Amazon movie](https://snap.stanford.edu/data/web-Movies.html)
-先下载数据，然后使用 [parser](https://github.com/Terark/amazon-movies-parser.git) 将源数据文件转换成行文本
+wikipedia_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
+```
+awk -v OFS='\t' -F '\t' '{print $1,$2,$3}' wikipedia.txt > wikipedia_key.txt
+shuf wikipedia_key.txt > wikipedia_key_shuf.txt
+```
 
-然后可使用如下配置：
+
+亦可使用 [Amazon movie](https://snap.stanford.edu/data/web-Movies.html) 数据：
+
+先下载数据，然后使用 [parser](https://github.com/Terark/amazon-movies-parser.git) 将源数据文件转换成行文本
+```
+git clone https://github.com/Terark/amazon-movies-parser
+cd amazon-movies-parser
+g++ -o parser amazon-moive-parser.cpp -std=c++11
+./parser movies.txt movies_flat.txt
+```
+movies_flat.txt 极为转换后的行文本文件
+
+配置样例如下：
 ```
 # movie.conf
 recordcount=7911683
- operationcount=200000
+operationcount=200000
  
- workload=com.yahoo.ycsb.workloads.FileWorkload
+workload=com.yahoo.ycsb.workloads.FileWorkload
  
+mongodb.url=mongodb://127.0.0.1:27017/movies
+mongodb.upsert=true
  
- #mongodb.url=mongodb://192.168.0.116:27017/movies
- mongodb.url=mongodb://127.0.0.1:27017/movies
- mongodb.upsert=true
+datafile=/path/to/movies_flat.txt
+keyfile=/path/to/movies_flat_key_shuf.txt
  
- datafile=/path/to/movies_flat.txt
- keyfile=/path/to/movies_flat_key.txt
+fieldnames=productproductId,reviewuserId,reviewprofileName,reviewhelpfulness,reviewscore,reviewtime,reviewsummary,reviewtext
+delimiter=\t
+usecustomkey=true
+keyfield=0,1,2
+fieldnum=8
  
- fieldnames=productproductId,reviewuserId,reviewprofileName,reviewhelpfulness,reviewscore,reviewtime,reviewsummary,reviewtext
- delimiter=\t
- usecustomkey=true
- keyfield=0,1,2
- fieldnum=8
- 
- writeinread=flase
- readproportion=0.9
- insertproportion=0.1
+writeinread=flase
+readproportion=0.9
+insertproportion=0.1
 ```
 
+movies_flat_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
 ```
-bin/ycsb load mongodb -s -P test.conf -threads 16
-```
+awk -v OFS='\t' -F '\t' '{print $1,$2,$3}' movies_flat.txt > movies_flat_key.txt
+shuf movies_flat_key.txt > movies_flat_key_shuf.txt
