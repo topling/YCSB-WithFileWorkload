@@ -16,6 +16,11 @@ permissions and limitations under the License. See accompanying
 LICENSE file.
 -->
 
+YCSB Terark FileWorkload
+====================================
+为了更真实的模拟实际的应用场景对 TerarkDB 进行测试，我们对 YCSB 做了一些修改，添加了一个 [FileWorkload](https://github.com/Terark/YCSB/blob/master/README-terark.md)，以使用更为真实的数据进行测试。
+
+
 Yahoo! Cloud System Benchmark (YCSB)
 ====================================
 [![Build Status](https://travis-ci.org/brianfrankcooper/YCSB.png?branch=master)](https://travis-ci.org/brianfrankcooper/YCSB)
