@@ -20,6 +20,8 @@ FileWorkload 选项
 | writetable | 混合测试中插入（写）操作的表名（ collection ）名（默认：usertable_for_write） |
 | writeinread | 是否在读操作中进行写操作，为 true　时在读操作时按一定比例（由　writerate 指定）将读出的数据写入到另一张表（由　writetable 指定）中，为 false 时将会从　datafile 中读取数据插入到表（由　writetable 指定）中（默认：true） |
 | writerate | 写操作比例，当 writeinread 为 true 时生效，为将读操作中读出的数据写入另一张表中的比例（默认：0） |
+| readproportion | 当 writeinread 为 false 时生效，为读在所有操作中的比例，与 writeproportion 相加为 1 （默认：0.95）|
+| writeproportion | 当 writeinread 为 false 时生效，为写在所有操作中的比例，与 readproportion 相加为 1 （默认：0.05）|
 | usecustomkey | 是否使用自定义的字段作为　key，若为　true 则使用　keyfield 中定义的字段作为　key，flase 则为使用随机生成的字段作为　key（默认：flase） |
 | keyfile | key **数据源**的文件名，仅在　usecustomkey　为 true 时有效，在读操作中作为 key |
 | keyfield | 数据源中抽取出来作为　key 的字段，为使用｀,｀分割的数字列表，表示组成 key 的字段序号（从 0　开始），仅在　usecustomkey 为　true　时有效（默认："0"） |
@@ -87,7 +89,7 @@ fieldnum=15
  
 writeinread=flase
 readproportion=0.9
-insertproportion=0.1
+writeproportion=0.1
 ```
 
 wikipedia_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
@@ -130,7 +132,7 @@ fieldnum=8
  
 writeinread=flase
 readproportion=0.9
-insertproportion=0.1
+writeproportion=0.1
 ```
 
 movies_flat_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
