@@ -118,14 +118,14 @@ public class FileWorkload extends CoreWorkload {
   public static final String READ_PROPORTION_PROPERTY_DEFAULT = "0.95";
 
   /**
-   * The name of the property for the proportion of transactions that are inserts.
+   * The name of the property for the proportion of transactions that are write.
    */
-  public static final String INSERT_PROPORTION_PROPERTY = "insertproportion";
+  public static final String WRITE_PROPORTION_PROPERTY = "writeproportion";
 
   /**
-   * The default proportion of transactions that are inserts.
+   * The default proportion of transactions that are writes.
    */
-  public static final String INSERT_PROPORTION_PROPERTY_DEFAULT = "0.05";
+  public static final String WRITE_PROPORTION_PROPERTY_DEFAULT = "0.05";
 
   protected DiscreteGenerator operationchooser;
 
@@ -181,7 +181,8 @@ public class FileWorkload extends CoreWorkload {
     return writeinread;
   }
 
-  private static ExecutorService producer = Executors.newFixedThreadPool(1);
+  private static ExecutorService dataproducer = Executors.newFixedThreadPool(1);
+  private static ExecutorService keyproducer = Executors.newFixedThreadPool(1);
 
 
   /**
@@ -223,13 +224,12 @@ public class FileWorkload extends CoreWorkload {
     dotransactions = Boolean.valueOf(p.getProperty(Client.DO_TRANSACTIONS_PROPERTY, String.valueOf(true)));
     keyQueue = new LinkedBlockingQueue<>();
 
-    if((!getDotransactions()) || (!getWriteinread())) {   // insert
+    if (!getDotransactions() || !getWriteinread()) {   // insert
       datafile = p.getProperty(DATA_FILE, DATA_FILE_DEFAULT);
       dataQueue = new LinkedBlockingQueue<>();
       operationchooser = createOperationGenerator(p);
 
-      // 单线程不断的从文件收集key
-      producer.execute(new Runnable() {
+      dataproducer.execute(new Runnable() {
         @Override
         public void run() {
           try {
@@ -252,13 +252,15 @@ public class FileWorkload extends CoreWorkload {
           }
         }
       });
-    } else {
+    }
+
+    if (getDotransactions()) {
       batchread = Integer.parseInt(p.getProperty(BATCH_READ, BATCH_READ_DEFAULT));
       writerate = Double.parseDouble(p.getProperty(WRITE_RATE, WRITE_RATE_DEFAULT));
 
       if (!getWriteinread()) {
         keyfile = p.getProperty(KEY_FILE, KEY_FILE_DEFAULT);
-        producer.execute(new Runnable() {
+        keyproducer.execute(new Runnable() {
           @Override
           public void run() {
             try {
@@ -417,7 +419,7 @@ public class FileWorkload extends CoreWorkload {
       switch (operation) {
       case "READ":
         return doRead(db);
-      case "INSERT":
+      case "WRITE":
         return doWrite(db);
       default:
         return doRead(db);
@@ -532,7 +534,7 @@ public class FileWorkload extends CoreWorkload {
    * Creates a weighted discrete values with database operations for a workload to perform.
    * Weights/proportions are read from the properties list and defaults are used
    * when values are not configured.
-   * Current operations are "READ", "UPDATE", "INSERT", "SCAN" and "READMODIFYWRITE".
+   * Current operations are "READ" and "WRITE".
    *
    * @param p The properties list to pull weights from.
    * @return A generator that can be used to determine the next operation to perform.
@@ -544,16 +546,16 @@ public class FileWorkload extends CoreWorkload {
     }
     final double readproportion = Double.parseDouble(
             p.getProperty(READ_PROPORTION_PROPERTY, READ_PROPORTION_PROPERTY_DEFAULT));
-    final double insertproportion = Double.parseDouble(
-            p.getProperty(INSERT_PROPORTION_PROPERTY, INSERT_PROPORTION_PROPERTY_DEFAULT));
+    final double writeproportion = Double.parseDouble(
+            p.getProperty(WRITE_PROPORTION_PROPERTY, WRITE_PROPORTION_PROPERTY_DEFAULT));
 
     final DiscreteGenerator operationchooser = new DiscreteGenerator();
     if (readproportion > 0) {
       operationchooser.addValue(readproportion, "READ");
     }
 
-    if (insertproportion > 0) {
-      operationchooser.addValue(insertproportion, "INSERT");
+    if (writeproportion > 0) {
+      operationchooser.addValue(writeproportion, "WRITE");
     }
     return operationchooser;
   }
