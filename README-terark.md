@@ -106,9 +106,9 @@ shuf wikipedia_key.txt > wikipedia_key_shuf.txt
 git clone https://github.com/Terark/amazon-movies-parser
 cd amazon-movies-parser
 g++ -o parser amazon-moive-parser.cpp -std=c++11
-./parser movies.txt movies_flat.txt
+./parser /path/to/movies.txt /path/to/movies_flat.txt
 ```
-movies_flat.txt 极为转换后的行文本文件
+movies_flat.txt 即为转换后的行文本文件
 
 配置样例如下：
 ```
