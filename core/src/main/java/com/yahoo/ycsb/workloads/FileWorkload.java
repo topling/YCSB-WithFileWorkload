@@ -226,7 +226,7 @@ public class FileWorkload extends CoreWorkload {
 
     if (!getDotransactions() || !getWriteinread()) {   // insert
       datafile = p.getProperty(DATA_FILE, DATA_FILE_DEFAULT);
-      dataQueue = new LinkedBlockingQueue<>();
+      dataQueue = new LinkedBlockingQueue<>(queuesize);
       operationchooser = createOperationGenerator(p);
 
       dataproducer.execute(new Runnable() {
@@ -235,14 +235,12 @@ public class FileWorkload extends CoreWorkload {
           try {
             BufferedReader reader = new BufferedReader(new FileReader(getdatafile()));
             while (!getIsStop()) {
-              if (dataQueue.size() < queuesize) {
                 String line = reader.readLine();
                 if (line == null) {
                   dataFileEof = true;
                   break;
                 }
-                dataQueue.add(line);
-              }
+                dataQueue.put(line);
             }
             reader.close();
           } catch (Exception e) {
