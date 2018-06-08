@@ -268,6 +268,7 @@ public class FileWorkload extends CoreWorkload {
                 if (line == null) {
                   System.err.println("Keyfile rewind!");
                   reader = new BufferedReader(new FileReader(getkeyfile()));
+                  line = reader.readLine();
                 }
                 keyQueue.add(line);
               }
