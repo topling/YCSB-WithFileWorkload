@@ -222,7 +222,6 @@ public class FileWorkload extends CoreWorkload {
     writeinread = Boolean.valueOf(p.getProperty(WRITE_IN_READ, WRITE_IN_READ_DEFAULT));
 
     dotransactions = Boolean.valueOf(p.getProperty(Client.DO_TRANSACTIONS_PROPERTY, String.valueOf(true)));
-    keyQueue = new LinkedBlockingQueue<>();
 
     if (!getDotransactions() || !getWriteinread()) {   // insert
       datafile = p.getProperty(DATA_FILE, DATA_FILE_DEFAULT);
@@ -235,12 +234,12 @@ public class FileWorkload extends CoreWorkload {
           try {
             BufferedReader reader = new BufferedReader(new FileReader(getdatafile()));
             while (!getIsStop()) {
-                String line = reader.readLine();
-                if (line == null) {
-                  dataFileEof = true;
-                  break;
-                }
-                dataQueue.put(line);
+              String line = reader.readLine();
+              if (line == null) {
+                dataFileEof = true;
+                break;
+              }
+              dataQueue.put(line);
             }
             reader.close();
           } catch (Exception e) {
@@ -258,20 +257,19 @@ public class FileWorkload extends CoreWorkload {
 
       if (!getWriteinread()) {
         keyfile = p.getProperty(KEY_FILE, KEY_FILE_DEFAULT);
+        keyQueue = new LinkedBlockingQueue<>(queuesize);
         keyproducer.execute(new Runnable() {
           @Override
           public void run() {
             try {
               BufferedReader reader = new BufferedReader(new FileReader(getkeyfile()));
               while (!getIsStop()) {
-                if (keyQueue.size() < queuesize) {
-                  String line = reader.readLine();
-                  if (line == null) {
-                    keyFileEof = true;
-                    break;
-                  }
-                  keyQueue.add(line);
+                String line = reader.readLine();
+                if (line == null) {
+                  System.err.println("Keyfile rewind!");
+                  reader = new BufferedReader(new FileReader(getkeyfile()));
                 }
+                keyQueue.add(line);
               }
               reader.close();
             } catch (Exception e) {
