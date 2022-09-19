@@ -32,9 +32,14 @@ public class DefaultDBFlavor extends DBFlavor {
 
   @Override
   public String createInsertStatement(StatementType insertType, String key) {
-    StringBuilder insert = new StringBuilder("INSERT INTO ");
+    StringBuilder insert;
+    if (insertType.getType() == StatementType.Type.INSERTREPLACE) {
+      insert = new StringBuilder("REPLACE INTO ");
+    } else {
+      insert = new StringBuilder("INSERT INTO ");
+    }
     insert.append(insertType.getTableName());
-    insert.append(" (" + JdbcDBClient.PRIMARY_KEY + "," + insertType.getFieldString() + ")");
+    insert.append(" (" + JdbcDBClient.getPrimarykey() + "," + insertType.getFieldString() + ")");
     insert.append(" VALUES(?");
     for (int i = 0; i < insertType.getNumFields(); i++) {
       insert.append(",?");
@@ -48,7 +53,7 @@ public class DefaultDBFlavor extends DBFlavor {
     StringBuilder read = new StringBuilder("SELECT * FROM ");
     read.append(readType.getTableName());
     read.append(" WHERE ");
-    read.append(JdbcDBClient.PRIMARY_KEY);
+    read.append(JdbcDBClient.getPrimarykey());
     read.append(" = ");
     read.append("?");
     return read.toString();
@@ -59,7 +64,7 @@ public class DefaultDBFlavor extends DBFlavor {
     StringBuilder delete = new StringBuilder("DELETE FROM ");
     delete.append(deleteType.getTableName());
     delete.append(" WHERE ");
-    delete.append(JdbcDBClient.PRIMARY_KEY);
+    delete.append(JdbcDBClient.getPrimarykey());
     delete.append(" = ?");
     return delete.toString();
   }
@@ -78,7 +83,7 @@ public class DefaultDBFlavor extends DBFlavor {
       }
     }
     update.append(" WHERE ");
-    update.append(JdbcDBClient.PRIMARY_KEY);
+    update.append(JdbcDBClient.getPrimarykey());
     update.append(" = ?");
     return update.toString();
   }
@@ -88,10 +93,10 @@ public class DefaultDBFlavor extends DBFlavor {
     StringBuilder select = new StringBuilder("SELECT * FROM ");
     select.append(scanType.getTableName());
     select.append(" WHERE ");
-    select.append(JdbcDBClient.PRIMARY_KEY);
+    select.append(JdbcDBClient.getPrimarykey());
     select.append(" >= ?");
     select.append(" ORDER BY ");
-    select.append(JdbcDBClient.PRIMARY_KEY);
+    select.append(JdbcDBClient.getPrimarykey());
     select.append(" LIMIT ?");
     return select.toString();
   }

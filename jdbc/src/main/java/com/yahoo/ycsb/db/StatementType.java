@@ -21,8 +21,9 @@ package com.yahoo.ycsb.db;
  */
 public class StatementType {
 
-  enum Type {
-    INSERT(1), DELETE(2), READ(3), UPDATE(4), SCAN(5);
+  /** Statement type. */
+  public enum Type {
+    INSERT(1), DELETE(2), READ(3), UPDATE(4), SCAN(5), INSERTREPLACE(6);
 
     private final int internalType;
 
@@ -62,6 +63,10 @@ public class StatementType {
 
   public int getNumFields() {
     return numFields;
+  }
+
+  public Type getType() {
+    return type;
   }
 
   @Override
