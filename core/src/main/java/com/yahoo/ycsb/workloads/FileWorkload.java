@@ -47,7 +47,8 @@ public class FileWorkload extends CoreWorkload {
   public static final String TABLENAME_PROPERTY_DEFAULT = "usertable";
 
   public static final String WRITE_TABLENAME_PROPERTY = "writetable";
-  public static final String WRITE_TABLENAME_PROPERTY_DEFAULT = "usertable_for_write";
+  // public static final String WRITE_TABLENAME_PROPERTY_DEFAULT = "usertable_for_write";
+  public static final String WRITE_TABLENAME_PROPERTY_DEFAULT = "usertable";
 
   public static final String WRITE_RATE = "writerate";
   public static final String WRITE_RATE_DEFAULT = "0";
@@ -270,7 +271,9 @@ public class FileWorkload extends CoreWorkload {
                   reader = new BufferedReader(new FileReader(getkeyfile()));
                   line = reader.readLine();
                 }
-                keyQueue.add(line);
+                if (line != null) {
++                  keyQueue.put(line);
++                }
               }
               reader.close();
             } catch (Exception e) {
