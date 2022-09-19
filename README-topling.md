@@ -1,9 +1,9 @@
 ### YCSB FileWorkload
 
-为了更真实的模拟实际的应用场景对 TerarkDB 进行测试，我们对 YCSB 做了一些修改，添加了一个 FileWorkload，这个 Workload 从提供的数据集作为数据源，而不是使用随机生成的数据。
+为了更真实的模拟实际的应用场景对 MyTopling 进行测试，我们对 YCSB 做了一些修改，添加了一个 FileWorkload，这个 Workload 从提供的数据集作为数据源，而不是使用随机生成的数据。
 
 #### 数据集
-数据集必须是文本文件，每行一条记录，每条记录有多个字段，字段之间用分隔符分隔，分隔符默认是 '\t' ，分隔符可以在配置文件中指定。我们通常使用 [Wikipedia](https://dumps.wikimedia.org/backup-index.html) 数据进行测试，我们将数据处理成了行[记录文本](http://terark-downloads.oss-cn-qingdao.aliyuncs.com/attachments/wikipedia.txt.tar.xz)（约 17G）
+数据集必须是文本文件，每行一条记录，每条记录有多个字段，字段之间用分隔符分隔，分隔符默认是 '\t' ，分隔符可以在配置文件中指定。我们通常使用 [Wikipedia](https://dumps.wikimedia.org/backup-index.html) 数据进行测试，我们将数据处理成了行记录文本：[顺序](https://topling-tools.oss-cn-qingdao.aliyuncs.com/wikipedia-flat-seq.zst) 和 [乱序](https://topling-tools.oss-cn-qingdao.aliyuncs.com/wikipedia-flat-rand.zst)。
 
 #### 相关选项参数
 
@@ -49,9 +49,8 @@ YCSB 中与 FileWorkload 相关的选项
 
 编译
 ```
-git clone https://github.com/Terark/YCSB.git
-checkout dev
-mvn package clean
+git clone https://github.com/topling/YCSB-WithFileWorkload
+mvn package
 ```
 
 编译后直接在此目录使用即可，也会在相应的目录下的 target 目录生成打包二进制文件
@@ -97,45 +96,3 @@ wikipedia_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，�
 awk -v OFS='\t' -F '\t' '{print $1,$2,$3}' wikipedia.txt > wikipedia_key.txt
 shuf wikipedia_key.txt > wikipedia_key_shuf.txt
 ```
-
-
-亦可使用 [Amazon movie](https://snap.stanford.edu/data/web-Movies.html) 数据：
-
-先下载数据，然后使用 [parser](https://github.com/Terark/amazon-movies-parser.git) 将源数据文件转换成行文本
-```
-git clone https://github.com/Terark/amazon-movies-parser
-cd amazon-movies-parser
-g++ -o parser amazon-moive-parser.cpp -std=c++11
-./parser /path/to/movies.txt /path/to/movies_flat.txt
-```
-movies_flat.txt 即为转换后的行文本文件
-
-配置样例如下：
-```
-# movie.conf
-recordcount=7911683
-operationcount=200000
- 
-workload=com.yahoo.ycsb.workloads.FileWorkload
- 
-mongodb.url=mongodb://127.0.0.1:27017/movies
-mongodb.upsert=true
- 
-datafile=/path/to/movies_flat.txt
-keyfile=/path/to/movies_flat_key_shuf.txt
- 
-fieldnames=productproductId,reviewuserId,reviewprofileName,reviewhelpfulness,reviewscore,reviewtime,reviewsummary,reviewtext
-delimiter=\t
-usecustomkey=true
-keyfield=0,1,2
-fieldnum=8
- 
-writeinread=flase
-readproportion=0.9
-writeproportion=0.1
-```
-
-movies_flat_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
-```
-awk -v OFS='\t' -F '\t' '{print $1,$2,$3}' movies_flat.txt > movies_flat_key.txt
-shuf movies_flat_key.txt > movies_flat_key_shuf.txt
