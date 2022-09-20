@@ -136,7 +136,7 @@ LICENSE file.
     <!--<module>kudu</module>-->
     <!--<module>mapkeeper</module>-->
     <!--<module>memcached</module>-->
-    <module>mongodb</module>
+    <!-- <module>mongodb</module> -->
     <!--<module>nosqldb</module>
     <module>orientdb</module>
     <module>rados</module>
