@@ -272,8 +272,8 @@ public class FileWorkload extends CoreWorkload {
                   line = reader.readLine();
                 }
                 if (line != null) {
-+                  keyQueue.put(line);
-+                }
+                  keyQueue.put(line);
+                }
               }
               reader.close();
             } catch (Exception e) {

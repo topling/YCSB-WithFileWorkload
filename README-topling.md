@@ -57,42 +57,39 @@ mvn package
 
 加载数据：
 ```
-bin/ycsb load mongodb -s -P test.conf -threads 16
+./bin/ycsb load jdbc -p workload=com.yahoo.ycsb.workloads.FileWorkload -P test.conf -cp /path/to/mysql-connector-java.jar -threads 16 -s
 ```
 
 进行测试：
 ```
-bin/ycsb run mongodb -s -P test.conf -threads 16
+./bin/ycsb run jdbc -p workload=com.yahoo.ycsb.workloads.FileWorkload -P test.conf -cp /path/to/mysql-connector-java.jar -threads 16 -s
 ```
 
 若使用 Wikipedia 数据可使用如下配置
 
 ```
-# wikipedia.conf
+# your_fileworkload
+
 recordcount=38508221
-operationcount=200000
- 
-workload=com.yahoo.ycsb.workloads.FileWorkload 
- 
-mongodb.url=mongodb://127.0.0.1:27017/test
-mongodb.upsert=true
- 
-datafile=/path/to/wikipedia.txt
-keyfile=/path/to/wikipedia_key_shuf.txt
+operationcount=38508221
+
+db.driver=com.mysql.jdbc.Driver
+db.url=jdbc:mysql://database_host:3306/your_database_name
+db.user=your_user
+db.passwd=your_passwd
+
+datafile=/path/to/data_file
+keyfile=/path/to/key_file
  
 fieldnames=cur_id,cur_namespace,cur_title,cur_text,cur_comment,cur_user,cur_user_text,cur_timestamp,cur_restrictions,cur_counter,cur_is_redirect,cur_minor_edit,cur_random,cur_touched,inverse_timestamp
 delimiter=\t
 usecustomkey=true
-keyfield=0,1,2
+keyfield=0
 fieldnum=15
+batchread=1
+readproportion=0.5
+writeproportion=0.5
  
 writeinread=flase
-readproportion=0.9
-writeproportion=0.1
-```
-
-wikipedia_key_shuf.txt 文件为进行读 / 写测试时使用的 key 集合，可以使用 awk 在源数据中抽取并随机乱序生成：
-```
-awk -v OFS='\t' -F '\t' '{print $1,$2,$3}' wikipedia.txt > wikipedia_key.txt
-shuf wikipedia_key.txt > wikipedia_key_shuf.txt
+mysql.upsert=true
 ```
